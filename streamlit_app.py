@@ -1,7 +1,6 @@
 import streamlit as st
-import boto3
+import boto3, io, tempfile
 from PIL import Image
-import io
 
 # AWS S3 Configuration
 AWS_ACCESS_KEY_ID = st.secrets['AWS_ACCESS_KEY_ID']
@@ -37,15 +36,29 @@ def display_image(bucket, key):
     img = Image.open(io.BytesIO(img_bytes))
     st.image(img, caption=key)
 
+def download_and_display_video(bucket, key):
+    """Download and display video from S3 bucket."""
+    video_bytes = s3.get_object(Bucket=bucket, Key=key)['Body'].read()
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmpfile:
+        tmpfile.write(video_bytes)
+        st.video(tmpfile.name)
+
 st.title('Biomachines 🧬🤖')
 
 folders, all_files = list_folders_and_files(BUCKET_NAME)
 
 # Sidebar for folder selection
-selected_folder = st.sidebar.selectbox("Select a folder:", [""] + list(folders))
+selected_folder = st.sidebar.selectbox("Select a chapter:", [""] + list(folders))
 
 if selected_folder:
-    st.write(f'Images in chapter: {selected_folder}')
+    st.write(f'Chapter: {selected_folder}')
+    video_key = f"{selected_folder}/{selected_folder}_9x16.mp4"
+    if video_key in all_files:
+        if st.button(f"Show Video"):
+            download_and_display_video(BUCKET_NAME, video_key)
+    # for file_key in all_files:
+    #     if file_key.startswith(selected_folder):
+    #         st.write(file_key)
     for file_key in all_files:
         if file_key.startswith(selected_folder+'/images'):
             # st.sidebar.write(file_key.replace(selected_folder+'/images/',''))
@@ -53,4 +66,4 @@ if selected_folder:
                 if st.sidebar.button(f"Show {file_key.replace(selected_folder+'/images/','')}"):
                     display_image(BUCKET_NAME, file_key)
 else:
-    st.write("Select a folder to view its contents.")
+    st.write("Select a chapter to view its contents.")
